@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.5" 
+	xmlns="http://java.sun.com/xml/ns/javaee" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee 
+	http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+  <display-name></display-name>	
+  <welcome-file-list>
+    <welcome-file>/FilterFolder/page1.jsp</welcome-file>
+  </welcome-file-list>
+  <!-- tomcat是sevlet容器提供servlet运行时环境,而servlet是一个服务器组件负责与客户端通信，基于请求和响应模式。 -->
+  
+  <context-param><!-- 当前web应用的初始化参数 -->
+    <param-name>contextPar1</param-name>
+    <param-value>当前web应用的初始化参数contextPar1的值一</param-value>
+  </context-param>
+  <context-param><!-- 当前web应用的初始化参数 -->
+    <param-name>contextPar2</param-name>
+    <param-value>当前web应用的初始化参数contextPar2的值二</param-value>
+  </context-param>
+  <servlet>
+    <servlet-name>MyHelloServlet</servlet-name>
+    <servlet-class>javaWebPackage.HelloeServlet</servlet-class>
+    
+    <init-param>
+     <param-name>user</param-name>
+     <param-value>宁康明</param-value>
+    </init-param>
+    <init-param>
+    <param-name>password</param-name>
+     <param-value>123</param-value>
+    </init-param>
+    <!-- 可以指定servlet创建的时机，放在最后。数值值越小，则越早创建，若为负数则在第一次请求时创建。0或正数则 在当前web应用于被servlet容器加载时创建-->
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+   <!-- 同一个Servlet可以有多个映射 -->
+   <servlet-mapping>
+     <servlet-name>MyHelloServlet</servlet-name>
+     <url-pattern>/MyHelloServlet.do</url-pattern>
+     
+   </servlet-mapping>
+   <!-- 同样的访问,如果用通配*的话则可以这样用:*.html,*.jsp,(前面不能加/),所有的可以访问,/* 。/和*不能同时使用。-->
+   <servlet-mapping>
+     <servlet-name>MyHelloServlet</servlet-name>
+     <url-pattern>/MyHelloServlet.do2</url-pattern>
+   </servlet-mapping>
+   <!--**************************** Filter servlet jsp html 图片等请求和响应的拦截器示例 ************** -->
+   
+   <filter>
+     <filter-name>mHelloFilter</filter-name>
+     <filter-class>javaFilterPakage.HelloFilter</filter-class>
+   </filter>
+   <filter>
+      <filter-name>secondFilter</filter-name>
+      <filter-class>javaFilterPakage.SecondFilter</filter-class>
+   </filter>
+   <!-- 拦截时    filter-mapping放置在前的则在filterChain的前面       跟创建Filter的顺序无关 -->
+   <filter-mapping>
+     <filter-name>secondFilter</filter-name>
+     <url-pattern>/FilterFolder/page1.jsp</url-pattern>
+   </filter-mapping>
+   <filter-mapping>
+      <filter-name>mHelloFilter</filter-name>
+      <url-pattern>/FilterFolder/page1.jsp</url-pattern> <!--要拦截的url  -->
+   </filter-mapping>
+</web-app>
