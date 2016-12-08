@@ -1,4 +1,4 @@
-package com.java.function;
+package xmlTest;
 import javax.xml.parsers.*;
 import org.w3c.dom.*;
 import org.xml.sax.*;

@@ -6,6 +6,7 @@ mybatis.log*
 /.externalToolBuilders
 /.myumldata
 /src/main/webapp/WEB-INF/classes
+/WebRoot/WEB-INF/classes
 # Eclipse project files
 .pom.xml.bak
 .tern-project

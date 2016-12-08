@@ -1,4 +1,4 @@
-package com.java.function;
+package xmlTest;
 
 public class XmlBean {
 
