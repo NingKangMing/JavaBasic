@@ -12,8 +12,7 @@ public class Helloworld {
 	
 	public static void main(String args[]){
 		   
-		   System.out.println("Hello,World!");
-		   
+		   System.out.println(2<<1==2<<33);//true 移位运算按数据类型占多少位来取余后在进行移位
 		}
 	
 	 static{

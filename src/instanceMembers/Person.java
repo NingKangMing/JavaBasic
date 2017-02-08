@@ -1,9 +1,20 @@
 package instanceMembers;
 
 public class Person {
-	 public String name;
+	
+	   public String name;
 	   public String age;
 	   public String sex;
+	   
+	   public Person(){
+		   super();
+	   }
+	   
+       public Person(String name,String age){
+		   super();
+		   this.name=name;
+		   this.age=age;
+	   }
 
 	public void show(){
 	  System.out.println("Ãû×ÖÎª"+name);
