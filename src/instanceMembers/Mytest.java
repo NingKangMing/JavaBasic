@@ -1,6 +1,7 @@
 package instanceMembers;
 
 
+import java.io.File;
 import java.util.Scanner;
 
 public class Mytest {
@@ -22,7 +23,6 @@ public class Mytest {
 	} 
 
 	public static void main(String[] args){
-		
 		Scanner scanner=new Scanner(System.in);
 		System.out.println("输入符合条件的数");
 //功能：实现循环输入一个数，直到符合用户要求  
