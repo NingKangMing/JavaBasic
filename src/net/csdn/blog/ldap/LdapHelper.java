@@ -1,202 +1,128 @@
 package net.csdn.blog.ldap;
 
-import java.security.MessageDigest;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Hashtable;
+import java.io.UnsupportedEncodingException;
 
-import javax.naming.Context;
-import javax.naming.NamingException;
-import javax.naming.directory.BasicAttribute;
-import javax.naming.directory.BasicAttributes;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
-import javax.naming.directory.ModificationItem;
-
-import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
+import com.novell.ldap.LDAPAttribute;
+import com.novell.ldap.LDAPAttributeSet;
+import com.novell.ldap.LDAPConnection;
+import com.novell.ldap.LDAPEntry;
+import com.novell.ldap.LDAPException;
 
 /** 
- * 用户登陆认证,LDAP跨域认证，通过LDAP对用户进行更新 <br>
- * DN:Distinguished Name <br>
- * dc:Domain Component <br>
- * OU:Organization Unit <br>
- * cn:Common Name<br>
- * uid:user Id<br>
- * sn:surname,姓氏
+ * 提供ldap用户认证，用户管理的功能
  * @author kangming.ning 
- * 
+ * @version 2017-04-28
  */
 public class LdapHelper {
-
-	private static DirContext dirContext;
-
-	// LDAP服务器端口默认为389
-	private static final String LDAP_URL = "ldap://172.16.34.156:389/";
 	
-	private static final String DOMAIN="dc=www,dc=km,dc=com";
-
-	// LDAP驱动
-	private static final String LDAP_FACTORY = "com.sun.jndi.ldap.LdapCtxFactory";
-
+	private String ldapHost = "192.168.1.100";//ldap服务器地址
 	
-   public static void main(String[] args){
-		
-	   addUserLdap("test","test1");
-		
-	}
-
-	//通过连接LDAP服务器对用户进行认证，返回LDAP对象
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static DirContext InitialDirContext() {
-		String account = "admin"; // 
-		String password = "admin"; // 密码
-		Hashtable env = new Hashtable();
-		env.put(Context.INITIAL_CONTEXT_FACTORY, LDAP_FACTORY);
-		env.put(Context.PROVIDER_URL, LDAP_URL+DOMAIN);
-		env.put(Context.SECURITY_AUTHENTICATION, "simple");
-		// cn=属于哪个组织结构名称，ou=某个组织结构名称下等级位置编号
-		env.put(Context.SECURITY_PRINCIPAL, "uid=" + account+" ou=People");//不指定用户名和密码匿名登录
-		env.put(Context.SECURITY_CREDENTIALS, password);
-
-		try {
-			// 连接LDAP进行认证
-			dirContext = new InitialDirContext(env);
-			System.out.println("initial dircontext success");
-		} catch (javax.naming.AuthenticationException e) {
-			System.out.println("initial fail");
-		} catch (NamingException err) {
-			err.printStackTrace();
-		} catch (Exception e) {
-			System.out.println("认证出错：");
-			e.printStackTrace();
+	private String loginDN = "cn=Manager,dc=www,dc=im-ldap,dc=com";//这是ldap超级管理员的dn
+	
+	private String password = "nufront";//ldap超级管理员的密码
+	
+	private String rootDn = "dc=im-ldap,dc=com";//这是ldap服务器的根节点
+	
+	private int ldapPort = LDAPConnection.DEFAULT_PORT;//ldap端口号 389为未加密端口 636为ssl加密端口
+	
+	private int ldapVersion = LDAPConnection.LDAP_V3;//ldap版本号
+	
+	private LDAPConnection lconn;
+	
+	private LDAPConnection getConnetion(){
+		if (null!=lconn&&lconn.isConnectionAlive()) {
+			return lconn;
+		}else{
+			lconn = new LDAPConnection();
+			try {
+				lconn.connect(ldapHost, ldapPort);
+				lconn.bind(ldapVersion, loginDN, password.getBytes("UTF8"));
+				System.out.println("login ldap server successfully.");
+			} catch (LDAPException e) {
+				e.printStackTrace();
+			} catch (UnsupportedEncodingException e) {
+				System.out.println("Error: " + e.toString());
+			}
+			return lconn;
 		}
-		return dirContext;
 	}
-
+	
 	/**
-	 * 判断将明文密码跟ldap中的用户密码进行匹配判断。因为ldap中的用户密码是经过SSHA散列的，因此必须将明文转换为SSHA码才能够进行匹配。
+	 * 添加ldap账户
 	 * */
-	public static boolean verifySHA(String ldappw, String inputpw) throws Exception {
+	public boolean addAccount(String account, String password) {
+		
+		LDAPAttributeSet attributeSet = new LDAPAttributeSet();
 
-		// MessageDigest 提供了消息摘要算法，如 MD5 或 SHA，的功能，这里LDAP使用的是SHA-1
-		MessageDigest md = MessageDigest.getInstance("SHA-1");
-
-		// 取出加密字符
-		if (ldappw.startsWith("{SSHA}")) {
-			ldappw = ldappw.substring(6);
-		} else if (ldappw.startsWith("{SHA}")) {
-			ldappw = ldappw.substring(5);
-		}
-
-		// 解码BASE64
-		byte[] ldappwbyte = Base64.decode(ldappw);
-		byte[] shacode;
-		byte[] salt;
-
-		// 前20位是SHA-1加密段，20位后是最初加密时的随机明文
-		if (ldappwbyte.length <= 20) {
-			shacode = ldappwbyte;
-			salt = new byte[0];
-		} else {
-			shacode = new byte[20];
-			salt = new byte[ldappwbyte.length - 20];
-			System.arraycopy(ldappwbyte, 0, shacode, 0, 20);
-			System.arraycopy(ldappwbyte, 20, salt, 0, salt.length);
-		}
-
-		// 把用户输入的密码添加到摘要计算信息
-		md.update(inputpw.getBytes());
-		// 把随机明文添加到摘要计算信息
-		md.update(salt);
-
-		// 按SSHA把当前用户密码进行计算
-		byte[] inputpwbyte = md.digest();
-
-		// 返回校验结果
-		return MessageDigest.isEqual(shacode, inputpwbyte);
-	}
-
-	// 添加用户
-	public static boolean addUserLdap(String account, String password) {
+		attributeSet.add(new LDAPAttribute("objectclass", new String(
+				"inetOrgPerson")));
+		attributeSet.add(new LDAPAttribute("cn", "KangMing Ning"));
+		attributeSet.add(new LDAPAttribute("sn", "Ning"));
+		attributeSet.add(new LDAPAttribute("mail", "kangming.ning@nufront.com"));
+		attributeSet.add(new LDAPAttribute("labeledURI",
+				"http://www.nufront.com"));
+		attributeSet.add(new LDAPAttribute("userPassword", "123456"));
+		attributeSet.add(new LDAPAttribute("uid", "km1"));
+		String dn = "uid=km,ou=People,"+rootDn;
+		LDAPEntry newEntry = new LDAPEntry(dn, attributeSet);
 		try {
-			dirContext = LdapHelper.InitialDirContext();
-			BasicAttributes attrsbu = new BasicAttributes();
-			BasicAttribute objclassSet = new BasicAttribute("objectclass");
-			objclassSet.add("person");//person对象类型要求cn（common name）和sn（surname）这两个域不能为空。
-			objclassSet.add("top");
-			objclassSet.add("organizationalPerson");
-			objclassSet.add("inetOrgPerson");
-			attrsbu.put(objclassSet);
-			attrsbu.put("sn", account);
-			attrsbu.put("uid", account);
-			attrsbu.put("userPassword", password);
-			dirContext.createSubcontext("cn=" + account + ",ou=People", attrsbu);
-			dirContext.close();
-			return true;
-		} catch (NamingException ex) {
-			try {
-				if (dirContext != null) {
-					dirContext.close();
-				}
-			} catch (NamingException namingException) {
-				namingException.printStackTrace();
+			getConnetion().add(newEntry);
+		} catch (LDAPException e) {
+			e.printStackTrace();
+			if (e.getResultCode() == LDAPException.NO_SUCH_OBJECT) {
+				System.err.println("Error: No such entry");
+			} else if (e.getResultCode() == LDAPException.NO_SUCH_ATTRIBUTE) {
+				System.err.println("Error: No such attribute");
+			} else {
+				System.err.println("Error: " + e.toString());
 			}
-			System.out.println("--------->>添加用户失败");
-		}
-		return false;
-	}
-
-	// 修改密码
-	public static boolean updatePasswordLdap(String account, String password) {
-		boolean success = false;
-		try {
-			dirContext = LdapHelper.InitialDirContext();
-			ModificationItem[] modificationItem = new ModificationItem[1];
-			modificationItem[0] = new ModificationItem(DirContext.REPLACE_ATTRIBUTE, new BasicAttribute("userPassword", password));
-			dirContext.modifyAttributes("cn=" + account + ",ou=People", modificationItem);
-			dirContext.close();
-			return true;
-		} catch (NamingException ex) {
-			try {
-				if (dirContext != null) {
-					dirContext.close();
-				}
-			} catch (NamingException namingException) {
-				namingException.printStackTrace();
-			}
-			System.out.println("--------->>修改密码失败");
-		}
-		return success;
-	}
-
-	// 删除用户
-	public static boolean deleteUserLdap(String account) {
-		try {
-			dirContext = LdapHelper.InitialDirContext();
-			dirContext.destroySubcontext("cn=" + account);
-		} catch (Exception ex) {
-			try {
-				if (dirContext != null) {
-					dirContext.close();
-				}
-			} catch (NamingException namingException) {
-				namingException.printStackTrace();
-			}
-			System.out.println("--------->>删除用户失败");
 			return false;
 		}
+		System.out.println("Added object: " + dn + " successfully.");
 		return true;
 	}
-
-	// 关闭LDAP服务器连接
-	public static void closeLdapContext() {
+	
+	/**
+	 * 添加ldap账户
+	 * */
+	public boolean deleteAccount(String account) {
+		String deleteDN = "uid=km,ou=People,dc=www,dc=im-ldap,dc=com";
 		try {
-			dirContext.close();
-			System.out.println("--------->> 关闭LDAP连接");
-		} catch (NamingException ex) {
-			System.out.println("--------->> 关闭LDAP连接失败");
+			getConnetion().delete(deleteDN);
+		} catch (LDAPException e) {
+			e.printStackTrace();
+			if (e.getResultCode() == LDAPException.NO_SUCH_OBJECT) {
+				System.err.println("Error: No such entry");
+			} else if (e.getResultCode() == LDAPException.NO_SUCH_ATTRIBUTE) {
+				System.err.println("Error: No such attribute");
+			} else {
+				System.err.println("Error: " + e.toString());
+			}
+			return false;
 		}
+		System.out.println(" delete Entry: " + deleteDN + " success.");
+		
+		return true;
 	}
 	
+	/**
+	 * 验证ldap账户的用户名和密码是否匹配
+	 * */
+	public boolean verifyAccount(String account, String password){
+		
+		String verifyDN = "uid=addnew,ou=People,dc=www,dc=im-ldap,dc=com";
+		LDAPAttribute attr = new LDAPAttribute("userPassword",password);
+		boolean correct;
+		try {
+			correct = getConnetion().compare(verifyDN, attr);
+			System.out.println(correct ? "The password is correct.^_^": "The password is incorrect.!!!-_-");
+		} catch (LDAPException e) {
+			e.printStackTrace();
+			return false;
+		}
+		
+		return true;
+	}
 	
+
 }
